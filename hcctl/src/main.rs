@@ -1,13 +1,12 @@
 #[macro_use]
 extern crate prettytable;
 
+use argh::FromArgs;
 use std::env::var;
 use std::time::SystemTime;
 
-use anyhow::anyhow;
 use chrono::prelude::{DateTime, Datelike, Timelike};
 use chrono::Duration;
-use clap::{crate_version, App, AppSettings, Arg};
 use prettytable::{format, Table};
 
 use healthchecks::manage;
@@ -16,6 +15,34 @@ use healthchecks::manage;
 struct Settings {
     token: String,
     ua: Option<String>,
+}
+
+/// Command-line tool for interacting with a https://healthchecks.io account
+#[derive(FromArgs)]
+struct Args {
+    #[argh(subcommand)]
+    command: Command,
+}
+
+#[derive(FromArgs)]
+#[argh(subcommand)]
+enum Command {
+    List(ListChecks),
+    Pings(GetPings),
+}
+
+/// List all checks associated with an account
+#[derive(FromArgs)]
+#[argh(subcommand, name = "list")]
+struct ListChecks {}
+
+/// Get logged pings for a given check
+#[derive(FromArgs)]
+#[argh(subcommand, name = "pings")]
+struct GetPings {
+    /// UUID for the check whose pings need to be logged
+    #[argh(positional)]
+    check_id: String,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -28,27 +55,11 @@ fn main() -> anyhow::Result<()> {
         ua,
     };
 
-    let matches = App::new("hcctl")
-        .about("Command-line tool for interacting with a https://healthchecks.io account")
-        .version(crate_version!())
-        .setting(AppSettings::ColoredHelp)
-        .setting(AppSettings::DeriveDisplayOrder)
-        .setting(AppSettings::SubcommandRequiredElseHelp)
-        .subcommand(App::new("list").about("Lists the checks in your account with their last ping"))
-        .subcommand(
-            App::new("pings")
-                .about("Get the last 10 pings for the given check ID")
-                .args(&[Arg::with_name("check_id")
-                    .help("ID of the check whose pings are being fetched")
-                    .required(true)
-                    .index(1)]),
-        )
-        .get_matches();
+    let cli: Args = argh::from_env();
 
-    match matches.subcommand() {
-        ("list", _) => list(settings)?,
-        ("pings", matches) => pings(settings, matches.unwrap().value_of("check_id").unwrap())?,
-        (cmd, _) => return Err(anyhow!("unknown subcommand: {}", cmd)),
+    match cli.command {
+        Command::List(_) => list(settings)?,
+        Command::Pings(args) => pings(settings, &args.check_id)?,
     }
 
     Ok(())

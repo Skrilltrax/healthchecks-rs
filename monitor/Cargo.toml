@@ -14,7 +14,7 @@ readme = "README.md"
 
 [dependencies]
 anyhow = "1.0.32"
-clap = { version = "2.33.3", default-features = false, features = ["suggestions", "color"] }
+argh = "0.1.4"
 execute = "0.2.8"
 healthchecks = { path = "../healthchecks", version = "^1.0.2-alpha.0"}
 
